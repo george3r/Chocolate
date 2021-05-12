@@ -29,17 +29,34 @@ def chocolate_alchemy_scraper(root_domain_url):
 				product_dict_detailed['product_type'] = product['product_type']
 				product_dict_detailed['beans/nibs'] = variant['option1']
 				product_dict_detailed['raw/roasted'] = variant['option2']
-				product_dict_detailed['size'] = variant['option3']
+				product_dict_detailed['size'] = str(variant['option3'])
 
-				try:
-					price_unit_list = variant['option3'].split(' ',1)
-				except:
-					price_unit_list = list(variant['option3'])
+				#print(type(str(product_dict_detailed['size'])))
+				price_unit_list = str(variant['option3']).split(' ',1)
 
 				product_dict_detailed['size (num)'] = price_unit_list[0]
 				product_dict_detailed['size (unit)'] = price_unit_list[-1]
+				#print(product_dict_detailed['slug'])
+				if product_dict_detailed['size (unit)'] == 'oz':
+					product_dict_detailed['size (num)'] = round(float(product_dict_detailed['size (num)'])/16,1)
+					product_dict_detailed['size (unit)'] = 'lb'
+				elif product_dict_detailed['size (unit)'][:3] == 'bag':
+					price_unit_list = str(product_dict_detailed['size (unit)'][product_dict_detailed['size (unit)'].find('(')+1:product_dict_detailed['size (unit)'].find(')')]).split(' ')
+					if price_unit_list[1] == 'lb' or price_unit_list[1] == 'lbs':
+						product_dict_detailed['size (num)'] = price_unit_list[0]
+						product_dict_detailed['size (unit)'] = 'lb'
+					elif price_unit_list[1] == 'kg':
+						product_dict_detailed['size (num)'] = round(float(re.sub('[^0-9.]','',price_unit_list[0]))*2.204623)
+						product_dict_detailed['size (unit)'] = 'lb'
+				elif (('MT' in product_dict_detailed['size (unit)']) or ('mt' in product_dict_detailed['size (unit)'])) and (product_dict_detailed['size (num)'] == '1/2'):
+					product_dict_detailed['size (num)'] = round(2204.623/2)
+					product_dict_detailed['size (unit)'] = 'lb (1/2 MT)'
+				elif (('MT' in product_dict_detailed['size (unit)']) or ('mt' in product_dict_detailed['size (unit)'])) and (product_dict_detailed['size (num)'] != '1/2'):
+					product_dict_detailed['size (unit)'] = f'lb ({price_unit_list[0]} MT)'
+					product_dict_detailed['size (num)'] = round(float(re.sub('[^0-9.]','',price_unit_list[0]))*2204.623)
+				
 
-				product_dict_detailed['size (grams)'] = variant['grams']
+				#product_dict_detailed['size (grams)'] = variant['grams']
 				product_dict_detailed['beans/nibs'] = variant['option1']
 				product_dict_detailed['available'] = variant['available']
 				product_dict_detailed['price'] = variant['price']
@@ -67,6 +84,13 @@ def chocolate_alchemy_scraper(root_domain_url):
 	ChocolateAlchemy_Products = ChocolateAlchemy_Products.transpose()
 	ChocolateAlchemy_Beans = ChocolateAlchemy_Products[(ChocolateAlchemy_Products['product_type'] == 'Beans') & (ChocolateAlchemy_Products['available'] == True)]
 	ChocolateAlchemy_Beans.drop(['available','product_id','update_date','slug'],axis = 1,inplace = True)
+	ChocolateAlchemy_Beans['price'] = ChocolateAlchemy_Beans['price'].astype(float)
+	ChocolateAlchemy_Beans['size (num)'] = ChocolateAlchemy_Beans['size (num)'].astype(float)
+	ChocolateAlchemy_Beans['price/lb'] = round(ChocolateAlchemy_Beans['price']/ChocolateAlchemy_Beans['size (num)'],2)
+	price_per_lb = ChocolateAlchemy_Beans['price/lb']
+	ChocolateAlchemy_Beans = ChocolateAlchemy_Beans.drop(columns = ['price/lb'])
+	ChocolateAlchemy_Beans.insert(loc = 8, column = 'price/lb', value = price_per_lb)
+	ChocolateAlchemy_Beans['size (unit)'] = ChocolateAlchemy_Beans['size (unit)'].replace(['lbs'],'lb')
 
 	return ChocolateAlchemy_Beans
 
@@ -95,7 +119,7 @@ def refresh_gs(
 	cacow_sheet_CA_products = cacow_sheet.worksheet(gs_worksheet_name)
 	cacow_sheet_CA_products.update([df.columns.values.tolist()] + df.values.tolist())
 
-	#cacow_sheet_CA_products.format('I:I',{'numberFormat': {'CURRENCY'}})
+	cacow_sheet_CA_products.format('H:I',{'numberFormat': {'type': 'CURRENCY'}})
 
 # REFRESH GOOGLE SHEETS
 refresh_gs()
