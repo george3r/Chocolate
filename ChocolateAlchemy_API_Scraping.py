@@ -23,7 +23,6 @@ def chocolate_alchemy_scraper(root_domain_url):
 	for product in products['products']:
 			for variant in product['variants']:
 
-
 				product_dict_detailed = {}
 				product_dict_detailed['product'] = product['title']
 				product_dict_detailed['slug'] = product['handle']
@@ -31,6 +30,15 @@ def chocolate_alchemy_scraper(root_domain_url):
 				product_dict_detailed['beans/nibs'] = variant['option1']
 				product_dict_detailed['raw/roasted'] = variant['option2']
 				product_dict_detailed['size'] = variant['option3']
+
+				try:
+					price_unit_list = variant['option3'].split(' ',1)
+				except:
+					price_unit_list = list(variant['option3'])
+
+				product_dict_detailed['size (num)'] = price_unit_list[0]
+				product_dict_detailed['size (unit)'] = price_unit_list[-1]
+
 				product_dict_detailed['size (grams)'] = variant['grams']
 				product_dict_detailed['beans/nibs'] = variant['option1']
 				product_dict_detailed['available'] = variant['available']
@@ -59,6 +67,7 @@ def chocolate_alchemy_scraper(root_domain_url):
 	ChocolateAlchemy_Products = ChocolateAlchemy_Products.transpose()
 	ChocolateAlchemy_Beans = ChocolateAlchemy_Products[(ChocolateAlchemy_Products['product_type'] == 'Beans') & (ChocolateAlchemy_Products['available'] == True)]
 	ChocolateAlchemy_Beans.drop(['available','product_id','update_date','slug'],axis = 1,inplace = True)
+
 	return ChocolateAlchemy_Beans
 
 
